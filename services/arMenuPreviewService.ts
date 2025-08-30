@@ -50,8 +50,8 @@ export interface ARPreviewOptions {
 }
 
 class ARMenuPreviewService {
-    private isARSupported: boolean = false;
-    private is3DSupported: boolean = false;
+    private _isARSupported: boolean = false;
+    private _is3DSupported: boolean = false;
     private currentScene: ARScene | null = null;
     private renderer: any = null;
     private scene: any = null;
@@ -68,21 +68,21 @@ class ARMenuPreviewService {
      */
     private checkSupport(): void {
         // Check for WebXR support
-        this.isARSupported = 'xr' in navigator && 'isSessionSupported' in navigator.xr;
+        this._isARSupported = 'xr' in navigator && 'isSessionSupported' in navigator.xr;
         
         // Check for WebGL support
         const canvas = document.createElement('canvas');
-        this.is3DSupported = !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
+        this._is3DSupported = !!(canvas.getContext('webgl') || canvas.getContext('experimental-webgl'));
         
-        console.log('AR Support:', this.isARSupported);
-        console.log('3D Support:', this.is3DSupported);
+        console.log('AR Support:', this._isARSupported);
+        console.log('3D Support:', this._is3DSupported);
     }
 
     /**
      * Initialize 3D rendering
      */
     private initialize3D(): void {
-        if (!this.is3DSupported) return;
+        if (!this._is3DSupported) return;
 
         try {
             // This would initialize Three.js or similar 3D library
@@ -92,7 +92,7 @@ class ARMenuPreviewService {
             this.renderer = { type: 'three-renderer' };
         } catch (error) {
             console.error('Failed to initialize 3D rendering:', error);
-            this.is3DSupported = false;
+            this._is3DSupported = false;
         }
     }
 
@@ -136,7 +136,7 @@ class ARMenuPreviewService {
      * Start AR session
      */
     async startARSession(scene: ARScene): Promise<boolean> {
-        if (!this.isARSupported) {
+        if (!this._isARSupported) {
             console.warn('AR not supported in this browser');
             return false;
         }
@@ -160,7 +160,7 @@ class ARMenuPreviewService {
      * Render 3D preview
      */
     async render3DPreview(scene: ARScene, container: HTMLElement): Promise<void> {
-        if (!this.is3DSupported) {
+        if (!this._is3DSupported) {
             this.renderFallbackPreview(scene, container);
             return;
         }
@@ -441,14 +441,14 @@ class ARMenuPreviewService {
      * Check if AR is supported
      */
     isARSupported(): boolean {
-        return this.isARSupported;
+        return this._isARSupported;
     }
 
     /**
      * Check if 3D is supported
      */
     is3DSupported(): boolean {
-        return this.is3DSupported;
+        return this._is3DSupported;
     }
 
     /**

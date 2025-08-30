@@ -578,6 +578,7 @@ const App: React.FC = () => {
     };
 
     const handleARPreview = (item: MenuItem) => {
+        console.log('AR Preview requested for item:', item);
         setSelectedItemForAR(item);
         setShowARPreview(true);
     };

@@ -36,6 +36,7 @@ const ARMenuPreview: React.FC<ARMenuPreviewProps> = ({ menuItem, onClose }) => {
     const arSessionRef = useRef<any>(null);
 
     useEffect(() => {
+        console.log('ARMenuPreview useEffect triggered with menuItem:', menuItem);
         initializePreview();
         return () => {
             cleanup();
@@ -43,13 +44,18 @@ const ARMenuPreview: React.FC<ARMenuPreviewProps> = ({ menuItem, onClose }) => {
     }, [menuItem]);
 
     const initializePreview = async () => {
+        console.log('Initializing AR preview for:', menuItem);
         setIsLoading(true);
         try {
             const scene = await arMenuPreviewService.createARPreview(menuItem, previewOptions);
+            console.log('AR scene created:', scene);
             setArScene(scene);
             
             if (containerRef.current && scene) {
+                console.log('Rendering 3D preview to container');
                 await arMenuPreviewService.render3DPreview(scene, containerRef.current);
+            } else {
+                console.log('Container or scene not available:', { container: containerRef.current, scene });
             }
         } catch (error) {
             console.error('Failed to initialize AR preview:', error);
