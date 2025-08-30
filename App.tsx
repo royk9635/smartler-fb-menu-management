@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { MenuCategory, MenuItem, Allergen, Currency, SpecialType, ImageOrientation } from './types';
 import * as api from './services/mockApiService';
 import { exportImportService, ExportOptions } from './services/exportImportService';
@@ -23,89 +23,99 @@ import ARMenuPreview from './components/ARMenuPreview';
 declare var XLSX: any;
 
 const App: React.FC = () => {
+    // Core state
     const [categories, setCategories] = useState<MenuCategory[]>([]);
     const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
     const [selectedCategory, setSelectedCategory] = useState<MenuCategory | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
-    const [isUploading, setIsUploading] = useState<boolean>(false);
-    const [isExporting, setIsExporting] = useState<boolean>(false);
     
+    // Modal states
     const [isCategoryModalOpen, setCategoryModalOpen] = useState<boolean>(false);
     const [editingCategory, setEditingCategory] = useState<MenuCategory | null>(null);
-    
     const [isMenuItemModalOpen, setMenuItemModalOpen] = useState<boolean>(false);
     const [editingMenuItem, setEditingMenuItem] = useState<MenuItem | null>(null);
-
     const [isConfirmModalOpen, setConfirmModalOpen] = useState<boolean>(false);
+    const [isImageModalOpen, setImageModalOpen] = useState<boolean>(false);
+    const [isQRCodeModalOpen, setQRCodeModalOpen] = useState<boolean>(false);
+    const [isBulkModalOpen, setBulkModalOpen] = useState<boolean>(false);
+    
+    // Action states
     const [deleteAction, setDeleteAction] = useState<(() => void) | null>(null);
     const [confirmMessage, setConfirmMessage] = useState<string>('');
-
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-    
-    const [isImageModalOpen, setImageModalOpen] = useState<boolean>(false);
     const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
-
-    const [isQRCodeModalOpen, setQRCodeModalOpen] = useState<boolean>(false);
     const [qrCodeData, setQrCodeData] = useState<{ url: string; title: string } | null>(null);
-
-    // New state for enhanced features
+    
+    // Enhanced features state
     const [filteredMenuItems, setFilteredMenuItems] = useState<MenuItem[]>([]);
-    const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
-    const [isBulkModalOpen, setBulkModalOpen] = useState<boolean>(false);
     const [selectedItemsForBulk, setSelectedItemsForBulk] = useState<MenuItem[]>([]);
     const [exportOptions, setExportOptions] = useState<ExportOptions>({
         format: 'csv',
         includeImages: false,
         includeMetadata: true
     });
-
-    // New state for AI-powered features
+    
+    // AI features state
+    const [showAnalytics, setShowAnalytics] = useState<boolean>(false);
     const [showAIOptimization, setShowAIOptimization] = useState<boolean>(false);
     const [showVoiceUpdates, setShowVoiceUpdates] = useState<boolean>(false);
     const [showARPreview, setShowARPreview] = useState<boolean>(false);
     const [selectedItemForAR, setSelectedItemForAR] = useState<MenuItem | null>(null);
+    
+    // Processing states
+    const [isUploading, setIsUploading] = useState<boolean>(false);
+    const [isExporting, setIsExporting] = useState<boolean>(false);
 
-    const showToast = (message: string, type: 'success' | 'error') => {
+    // Memoized values
+    const currentMenuItems = useMemo(() => 
+        filteredMenuItems.length > 0 ? filteredMenuItems : menuItems, 
+        [filteredMenuItems, menuItems]
+    );
+
+    // Toast utility
+    const showToast = useCallback((message: string, type: 'success' | 'error') => {
         setToast({ message, type });
-        setTimeout(() => setToast(null), 5000); // Increased timeout for potentially longer messages
-    };
+        setTimeout(() => setToast(null), 5000);
+    }, []);
 
-    // FIX: Moved handleBackToCategories before fetchCategories and wrapped in useCallback
+    // Navigation handlers
     const handleBackToCategories = useCallback(() => {
         setSelectedCategory(null);
         setMenuItems([]);
+        setFilteredMenuItems([]);
     }, []);
 
+    // Data fetching
     const fetchCategories = useCallback(async () => {
-        setLoading(true);
         try {
             const fetchedCategories = await api.getCategories('tenant-123');
             setCategories(fetchedCategories);
-            // If the selected category no longer exists after a refresh, go back to the list
+            
+            // If selected category no longer exists, go back to list
             if (selectedCategory && !fetchedCategories.find(c => c.id === selectedCategory.id)) {
                 handleBackToCategories();
             }
         } catch (error) {
+            console.error('Failed to fetch categories:', error);
             showToast('Failed to fetch categories.', 'error');
-        } finally {
-            setLoading(false);
         }
-    // FIX: Added handleBackToCategories to the dependency array
-    }, [selectedCategory, handleBackToCategories]);
+    }, [selectedCategory, handleBackToCategories, showToast]);
 
-    const fetchMenuItems = useCallback(async () => {
-        if (!selectedCategory) return;
+    const fetchMenuItems = useCallback(async (categoryId: string) => {
         try {
-            console.log('Fetching menu items for category:', selectedCategory.id);
-            const items = await api.getMenuItems('tenant-123', selectedCategory.id);
+            console.log('Fetching menu items for category:', categoryId);
+            const items = await api.getMenuItems('tenant-123', categoryId);
             console.log('Fetched menu items:', items);
             setMenuItems(items);
+            setFilteredMenuItems([]); // Reset filters when changing categories
         } catch (error) {
             console.error('Error fetching menu items:', error);
             showToast('Failed to fetch menu items.', 'error');
+            setMenuItems([]);
         }
-    }, [selectedCategory]);
+    }, [showToast]);
 
+    // Effects
     useEffect(() => {
         fetchCategories();
     }, [fetchCategories]);
@@ -113,28 +123,25 @@ const App: React.FC = () => {
     useEffect(() => {
         if (selectedCategory) {
             console.log('Selected category changed, fetching menu items...');
-            fetchMenuItems();
+            fetchMenuItems(selectedCategory.id);
         }
-    }, [selectedCategory]);
+    }, [selectedCategory, fetchMenuItems]);
 
-    const handleSelectCategory = async (category: MenuCategory) => {
+    // Category handlers
+    const handleSelectCategory = useCallback(async (category: MenuCategory) => {
         console.log('Selecting category:', category);
         setSelectedCategory(category);
         setLoading(true);
         try {
-            console.log('Fetching menu items for category:', category.id);
-            const items = await api.getMenuItems('tenant-123', category.id);
-            console.log('Fetched items:', items);
-            setMenuItems(items);
+            await fetchMenuItems(category.id);
         } catch (error) {
-            console.error('Error fetching menu items:', error);
-            showToast(`Failed to fetch menu items for ${category.name}.`, 'error');
+            console.error('Error in handleSelectCategory:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [fetchMenuItems]);
 
-    const handleSaveCategory = async (categoryData: Omit<MenuCategory, 'id' | 'tenantId'>) => {
+    const handleSaveCategory = useCallback(async (categoryData: Omit<MenuCategory, 'id' | 'tenantId'>) => {
         try {
             if (editingCategory) {
                 await api.updateCategory({ ...categoryData, id: editingCategory.id, tenantId: 'tenant-123' });
@@ -143,15 +150,15 @@ const App: React.FC = () => {
                 await api.addCategory({ ...categoryData, tenantId: 'tenant-123' });
                 showToast('Category added successfully!', 'success');
             }
-            await fetchCategories(); // Re-fetch to get the latest list including the new/updated one
+            await fetchCategories();
             setCategoryModalOpen(false);
             setEditingCategory(null);
         } catch (error) {
             showToast('Failed to save category.', 'error');
         }
-    };
+    }, [editingCategory, fetchCategories, showToast]);
 
-    const handleDeleteCategory = (categoryId: string) => {
+    const handleDeleteCategory = useCallback((categoryId: string) => {
         const categoryToDelete = categories.find(c => c.id === categoryId);
         if (!categoryToDelete) return;
 
@@ -175,29 +182,34 @@ const App: React.FC = () => {
         });
 
         setConfirmModalOpen(true);
-    };
-    
-    const handleSaveMenuItem = async (itemData: Omit<MenuItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
+    }, [categories, selectedCategory, handleBackToCategories, showToast]);
+
+    // Menu item handlers
+    const handleSaveMenuItem = useCallback(async (itemData: Omit<MenuItem, 'id' | 'tenantId' | 'createdAt' | 'updatedAt'>) => {
         if (!selectedCategory) return;
         try {
             if (editingMenuItem) {
-                await api.updateMenuItem({ ...itemData, id: editingMenuItem.id, tenantId: 'tenant-123', createdAt: editingMenuItem.createdAt, updatedAt: new Date().toISOString() });
+                await api.updateMenuItem({ 
+                    ...itemData, 
+                    id: editingMenuItem.id, 
+                    tenantId: 'tenant-123', 
+                    createdAt: editingMenuItem.createdAt, 
+                    updatedAt: new Date().toISOString() 
+                });
                 showToast('Menu item updated successfully!', 'success');
             } else {
                 await api.addMenuItem({ ...itemData, tenantId: 'tenant-123' });
                 showToast('Menu item added successfully!', 'success');
             }
-            // Re-fetch items for the current category to reflect changes
-            const items = await api.getMenuItems('tenant-123', selectedCategory.id);
-            setMenuItems(items);
+            await fetchMenuItems(selectedCategory.id);
             setMenuItemModalOpen(false);
             setEditingMenuItem(null);
         } catch (error) {
             showToast('Failed to save menu item.', 'error');
         }
-    };
+    }, [selectedCategory, editingMenuItem, fetchMenuItems, showToast]);
 
-    const handleDeleteMenuItem = (itemId: string) => {
+    const handleDeleteMenuItem = useCallback((itemId: string) => {
         if (!selectedCategory) return;
         const itemToDelete = menuItems.find(item => item.id === itemId);
         if (!itemToDelete) return;
@@ -219,9 +231,9 @@ const App: React.FC = () => {
         });
 
         setConfirmModalOpen(true);
-    };
+    }, [selectedCategory, menuItems, showToast]);
 
-    const handleToggleMenuItemAvailability = async (itemToToggle: MenuItem) => {
+    const handleToggleMenuItemAvailability = useCallback(async (itemToToggle: MenuItem) => {
         const updatedItem = { ...itemToToggle, availabilityFlag: !itemToToggle.availabilityFlag };
     
         // Optimistic UI update
@@ -241,17 +253,18 @@ const App: React.FC = () => {
         } catch (error) {
             showToast(`Failed to update '${itemToToggle.name}'. Reverting...`, 'error');
             console.error(error);
-            setMenuItems(originalItems); // Revert on failure
+            setMenuItems(originalItems);
         }
-    };
+    }, [menuItems, showToast]);
 
-    const handleAddItemToCategory = (category: MenuCategory) => {
+    const handleAddItemToCategory = useCallback((category: MenuCategory) => {
         setSelectedCategory(category);
         setEditingMenuItem(null);
         setMenuItemModalOpen(true);
-    };
+    }, []);
 
-    const handleExcelUpload = async (file: File) => {
+    // Excel handlers
+    const handleExcelUpload = useCallback(async (file: File) => {
         setIsUploading(true);
         try {
             const reader = new FileReader();
@@ -313,7 +326,7 @@ const App: React.FC = () => {
                             name: String(row['Name'] || ''),
                             description: String(row['Description'] || ''),
                             price: price,
-                            currency: (Object.values(Currency).includes(row['Currency'] as Currency) ? row['Currency'] : Currency.USD) as Currency,
+                            currency: (Object.values(Currency).includes(row['Currency'] as Currency) ? (row['Currency'] as Currency) : Currency.USD),
                             imageUrl: String(row['Image URL'] || 'https://picsum.photos/400/300'),
                             videoUrl: String(row['Video URL'] || ''),
                             allergens: [], // Note: Complex to parse from Excel, defaulting to empty.
@@ -324,12 +337,12 @@ const App: React.FC = () => {
                             prepTime: parseInt(String(row['Prep Time (min)']), 10) || 0,
                             soldOut: String(row['Sold Out']).toLowerCase() === 'true',
                             portion: String(row['Portion'] || ''),
-                            specialType: (Object.values(SpecialType).includes(row['Special Type'] as SpecialType) ? row['Special Type'] : SpecialType.NONE) as SpecialType,
+                            specialType: (Object.values(SpecialType).includes(row['Special Type'] as SpecialType) ? (row['Special Type'] as SpecialType) : SpecialType.NONE),
                             calories: parseInt(String(row['Calories']), 10) || 0,
                             maxOrderQty: parseInt(String(row['Max Order Qty']), 10) || 10,
                             bogo: String(row['BOGO']).toLowerCase() === 'true',
                             complimentary: String(row['Complimentary'] || ''),
-                            imageOrientation: (Object.values(ImageOrientation).includes(row['Image Orientation'] as ImageOrientation) ? row['Image Orientation'] : ImageOrientation.SQUARE) as ImageOrientation,
+                            imageOrientation: (Object.values(ImageOrientation).includes(row['Image Orientation'] as ImageOrientation) ? (row['Image Orientation'] as ImageOrientation) : ImageOrientation.SQUARE),
                             availableTime: String(row['Available Time'] || ''),
                             availableDate: String(row['Available Date'] || ''),
                         };
@@ -354,9 +367,9 @@ const App: React.FC = () => {
                     showToast(message || 'No items found in file.', errorCount > 0 ? 'error' : 'success');
                     if (errorCount > 0) console.error("Excel upload errors:\n", errors.join('\n'));
                     
-                    await fetchCategories(); // Refresh categories in case new items were added to them
-                    if (selectedCategory) { // If viewing a category, refresh its items
-                        await handleSelectCategory(selectedCategory);
+                    await fetchCategories();
+                    if (selectedCategory) {
+                        await fetchMenuItems(selectedCategory.id);
                     }
 
                 } catch (err) {
@@ -372,9 +385,9 @@ const App: React.FC = () => {
             console.error(error);
             setIsUploading(false);
         }
-    };
+    }, [categories, selectedCategory, fetchCategories, fetchMenuItems, showToast]);
 
-    const handleExcelExport = async () => {
+    const handleExcelExport = useCallback(async () => {
         setIsExporting(true);
         try {
             const allItems = await api.getAllMenuItems('tenant-123');
@@ -429,22 +442,18 @@ const App: React.FC = () => {
         } finally {
             setIsExporting(false);
         }
-    };
+    }, [categories, showToast]);
 
-    const handleReorderCategories = async (reorderedCategories: MenuCategory[]) => {
+    const handleReorderCategories = useCallback(async (reorderedCategories: MenuCategory[]) => {
         const originalCategories = [...categories];
-        // Optimistic UI update
         setCategories(reorderedCategories);
 
         const updatesToSend = reorderedCategories.filter(newCat => {
             const oldCat = originalCategories.find(c => c.id === newCat.id);
-            // Only create an update promise if the sortOrder has actually changed
             return oldCat && oldCat.sortOrder !== newCat.sortOrder;
         });
 
-        if (updatesToSend.length === 0) {
-            return; // No changes to save
-        }
+        if (updatesToSend.length === 0) return;
         
         const updatePromises = updatesToSend.map(category => api.updateCategory(category));
         
@@ -453,79 +462,56 @@ const App: React.FC = () => {
             showToast('Category order saved!', 'success');
         } catch (error) {
             showToast('Failed to save new category order. Reverting...', 'error');
-            setCategories(originalCategories); // Revert on failure
+            setCategories(originalCategories);
         }
-    };
-    
-    const handleImageClick = (imageUrl: string) => {
-        setPreviewImageUrl(imageUrl);
-        setImageModalOpen(true);
-    };
+    }, [categories, showToast]);
 
-    const handleCloseImageModal = () => {
-        setImageModalOpen(false);
-        setPreviewImageUrl(null);
-    };
-
-    const handleGenerateQR = (category: MenuCategory | null) => {
-        // Use a hypothetical public URL structure
-        const baseUrl = window.location.origin.replace(/\/$/, '') + '/menu/tenant-123';
-        if (category) {
-            setQrCodeData({
-                url: `${baseUrl}?categoryId=${category.id}`,
-                title: `QR for "${category.name}"`,
-            });
-        } else {
-            setQrCodeData({
-                url: baseUrl,
-                title: 'QR for Full Menu',
-            });
-        }
-        setQRCodeModalOpen(true);
-    };
-
-    // New handler functions for enhanced features
-    const handleFilteredItems = (items: MenuItem[]) => {
+    // Enhanced features handlers
+    const handleFilteredItems = useCallback((items: MenuItem[]) => {
         setFilteredMenuItems(items);
-    };
+    }, []);
 
-    const handleBulkDelete = async (itemIds: string[]) => {
+    const handleBulkDelete = useCallback(async (itemIds: string[]) => {
         try {
             for (const id of itemIds) {
                 await api.deleteMenuItem(id);
             }
             showToast(`Successfully deleted ${itemIds.length} item(s)`, 'success');
-            await fetchMenuItems();
+            if (selectedCategory) {
+                await fetchMenuItems(selectedCategory.id);
+            }
         } catch (error) {
             showToast('Failed to delete some items', 'error');
         }
-    };
+    }, [selectedCategory, fetchMenuItems, showToast]);
 
-    const handleBulkEdit = (itemIds: string[]) => {
+    const handleBulkEdit = useCallback((itemIds: string[]) => {
         const items = menuItems.filter(item => itemIds.includes(item.id));
         setSelectedItemsForBulk(items);
         setBulkModalOpen(true);
-    };
+    }, [menuItems]);
 
-    const handleBulkSave = async (updatedItems: MenuItem[]) => {
+    const handleBulkSave = useCallback(async (updatedItems: MenuItem[]) => {
         try {
             for (const item of updatedItems) {
                 await api.updateMenuItem(item);
             }
             showToast(`Successfully updated ${updatedItems.length} item(s)`, 'success');
-            await fetchMenuItems();
+            if (selectedCategory) {
+                await fetchMenuItems(selectedCategory.id);
+            }
             setBulkModalOpen(false);
             setSelectedItemsForBulk([]);
         } catch (error) {
             showToast('Failed to update some items', 'error');
         }
-    };
+    }, [selectedCategory, fetchMenuItems, showToast]);
 
-    const handleExport = async () => {
+    const handleExport = useCallback(async () => {
         try {
             setIsExporting(true);
             await exportImportService.exportData(
-                filteredMenuItems.length > 0 ? filteredMenuItems : menuItems,
+                currentMenuItems,
                 categories,
                 exportOptions
             );
@@ -535,24 +521,24 @@ const App: React.FC = () => {
         } finally {
             setIsExporting(false);
         }
-    };
+    }, [currentMenuItems, categories, exportOptions, showToast]);
 
-    const handleImport = async (file: File) => {
+    const handleImport = useCallback(async (file: File) => {
         try {
             setIsUploading(true);
             const result = await exportImportService.importData(file);
             
             if (result.success) {
                 if (result.importedItems && result.importedItems.length > 0) {
-                    // Add imported items to the system
                     for (const item of result.importedItems) {
                         await api.addMenuItem(item);
                     }
                     showToast(`Successfully imported ${result.importedItems.length} items`, 'success');
-                    await fetchMenuItems();
+                    if (selectedCategory) {
+                        await fetchMenuItems(selectedCategory.id);
+                    }
                 }
                 if (result.importedCategories && result.importedCategories.length > 0) {
-                    // Add imported categories to the system
                     for (const category of result.importedCategories) {
                         await api.addCategory(category);
                     }
@@ -567,34 +553,60 @@ const App: React.FC = () => {
         } finally {
             setIsUploading(false);
         }
-    };
+    }, [selectedCategory, fetchMenuItems, fetchCategories, showToast]);
 
-    // New handler functions for AI-powered features
-    const handleVoiceUpdate = (result: any) => {
+    // AI features handlers
+    const handleVoiceUpdate = useCallback((result: any) => {
         if (result.success) {
             showToast(result.message, 'success');
-            // Refresh data if needed
             if (result.action === 'created' || result.action === 'updated' || result.action === 'deleted') {
                 fetchCategories();
                 if (selectedCategory) {
-                    fetchMenuItems();
+                    fetchMenuItems(selectedCategory.id);
                 }
             }
         } else {
             showToast(result.message, 'error');
         }
-    };
+    }, [fetchCategories, selectedCategory, fetchMenuItems, showToast]);
 
-    const handleARPreview = (item: MenuItem) => {
+    const handleARPreview = useCallback((item: MenuItem) => {
         console.log('AR Preview requested for item:', item);
         setSelectedItemForAR(item);
         setShowARPreview(true);
-    };
+    }, []);
 
-    const closeARPreview = () => {
+    const closeARPreview = useCallback(() => {
         setShowARPreview(false);
         setSelectedItemForAR(null);
-    };
+    }, []);
+
+    // Utility handlers
+    const handleImageClick = useCallback((imageUrl: string) => {
+        setPreviewImageUrl(imageUrl);
+        setImageModalOpen(true);
+    }, []);
+
+    const handleCloseImageModal = useCallback(() => {
+        setImageModalOpen(false);
+        setPreviewImageUrl(null);
+    }, []);
+
+    const handleGenerateQR = useCallback((category: MenuCategory | null) => {
+        const baseUrl = window.location.origin.replace(/\/$/, '') + '/menu/tenant-123';
+        if (category) {
+            setQrCodeData({
+                url: `${baseUrl}?categoryId=${category.id}`,
+                title: `QR for "${category.name}"`,
+            });
+        } else {
+            setQrCodeData({
+                url: baseUrl,
+                title: 'QR for Full Menu',
+            });
+        }
+        setQRCodeModalOpen(true);
+    }, []);
 
     return (
         <div className="min-h-screen text-slate-800">
@@ -627,7 +639,7 @@ const App: React.FC = () => {
                         />
                         <MenuItemList
                             category={selectedCategory}
-                            items={filteredMenuItems.length > 0 ? filteredMenuItems : menuItems}
+                            items={currentMenuItems}
                             onAddItem={() => { setEditingMenuItem(null); setMenuItemModalOpen(true); }}
                             onEditItem={(item) => { setEditingMenuItem(item); setMenuItemModalOpen(true); }}
                             onDeleteItem={handleDeleteMenuItem}
