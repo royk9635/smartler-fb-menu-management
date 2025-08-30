@@ -1,0 +1,5 @@
+{
+  "name": "Smartler F&B Menu Management",
+  "description": "An admin portal for managing menu categories and items for the Smartler F&B Platform. Users can create, view, update, and delete menu categories and the items within them.",
+  "requestFramePermissions": []
+}
