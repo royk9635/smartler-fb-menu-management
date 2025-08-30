@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "qrcode.react": "latest"
+    "qrcode.react": "latest",
+    "lucide-react": "^0.400.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
