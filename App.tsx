@@ -16,6 +16,9 @@ import SearchAndFilter from './components/SearchAndFilter';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import BulkOperationsModal from './components/BulkOperationsModal';
 import ThemeToggle from './components/ThemeToggle';
+import AIMenuOptimizationDashboard from './components/AIMenuOptimizationDashboard';
+import VoiceMenuUpdates from './components/VoiceMenuUpdates';
+import ARMenuPreview from './components/ARMenuPreview';
 
 declare var XLSX: any;
 
@@ -55,6 +58,12 @@ const App: React.FC = () => {
         includeImages: false,
         includeMetadata: true
     });
+
+    // New state for AI-powered features
+    const [showAIOptimization, setShowAIOptimization] = useState<boolean>(false);
+    const [showVoiceUpdates, setShowVoiceUpdates] = useState<boolean>(false);
+    const [showARPreview, setShowARPreview] = useState<boolean>(false);
+    const [selectedItemForAR, setSelectedItemForAR] = useState<MenuItem | null>(null);
 
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
@@ -552,6 +561,32 @@ const App: React.FC = () => {
         }
     };
 
+    // New handler functions for AI-powered features
+    const handleVoiceUpdate = (result: any) => {
+        if (result.success) {
+            showToast(result.message, 'success');
+            // Refresh data if needed
+            if (result.action === 'created' || result.action === 'updated' || result.action === 'deleted') {
+                fetchCategories();
+                if (selectedCategory) {
+                    fetchMenuItems();
+                }
+            }
+        } else {
+            showToast(result.message, 'error');
+        }
+    };
+
+    const handleARPreview = (item: MenuItem) => {
+        setSelectedItemForAR(item);
+        setShowARPreview(true);
+    };
+
+    const closeARPreview = () => {
+        setShowARPreview(false);
+        setSelectedItemForAR(null);
+    };
+
     return (
         <div className="min-h-screen text-slate-800">
              {(isUploading || isExporting) && (
@@ -590,6 +625,7 @@ const App: React.FC = () => {
                             onBack={handleBackToCategories}
                             onToggleAvailability={handleToggleMenuItemAvailability}
                             onImageClick={handleImageClick}
+                            onARPreview={handleARPreview}
                         />
                     </>
                 ) : (
@@ -611,6 +647,26 @@ const App: React.FC = () => {
                                 >
                                     {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
                                 </button>
+                                <button
+                                    onClick={() => setShowAIOptimization(!showAIOptimization)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        showAIOptimization 
+                                            ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {showAIOptimization ? 'Hide AI Optimization' : '🤖 AI Optimization'}
+                                </button>
+                                <button
+                                    onClick={() => setShowVoiceUpdates(!showVoiceUpdates)}
+                                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                        showVoiceUpdates 
+                                            ? 'bg-green-600 text-white hover:bg-green-700' 
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    {showVoiceUpdates ? 'Hide Voice Updates' : '🎤 Voice Updates'}
+                                </button>
                             </div>
                         </div>
 
@@ -620,6 +676,21 @@ const App: React.FC = () => {
                                     menuItems={menuItems}
                                     categories={categories}
                                 />
+                            </div>
+                        )}
+
+                        {showAIOptimization && (
+                            <div className="mb-8">
+                                <AIMenuOptimizationDashboard 
+                                    menuItems={menuItems}
+                                    categories={categories}
+                                />
+                            </div>
+                        )}
+
+                        {showVoiceUpdates && (
+                            <div className="mb-8">
+                                <VoiceMenuUpdates onVoiceUpdate={handleVoiceUpdate} />
                             </div>
                         )}
 
@@ -693,6 +764,12 @@ const App: React.FC = () => {
                     onClose={() => setBulkModalOpen(false)}
                     selectedItems={selectedItemsForBulk}
                     onSave={handleBulkSave}
+                />
+            )}
+            {showARPreview && selectedItemForAR && (
+                <ARMenuPreview
+                    menuItem={selectedItemForAR}
+                    onClose={closeARPreview}
                 />
             )}
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

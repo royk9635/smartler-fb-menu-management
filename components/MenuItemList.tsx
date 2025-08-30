@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MenuCategory, MenuItem } from '../types';
 import { PlusIcon, PencilIcon, TrashIcon, ArrowLeftIcon, SearchIcon } from './Icons';
+import { Eye } from 'lucide-react';
 import ToggleSwitch from './ToggleSwitch';
 
 interface MenuItemListProps {
@@ -12,6 +13,7 @@ interface MenuItemListProps {
     onBack: () => void;
     onToggleAvailability: (item: MenuItem) => void;
     onImageClick: (imageUrl: string) => void;
+    onARPreview?: (item: MenuItem) => void;
 }
 
 const MenuItemList: React.FC<MenuItemListProps> = ({ category, items, onAddItem, onEditItem, onDeleteItem, onBack, onToggleAvailability, onImageClick }) => {
@@ -126,6 +128,15 @@ const MenuItemList: React.FC<MenuItemListProps> = ({ category, items, onAddItem,
                                         <button onClick={() => onEditItem(item)} className="text-amber-500 hover:text-amber-700 p-2 rounded-full hover:bg-amber-100 transition" title="Edit Item">
                                             <PencilIcon className="h-5 w-5"/>
                                         </button>
+                                        {onARPreview && (
+                                            <button 
+                                                onClick={() => onARPreview(item)} 
+                                                className="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100 transition" 
+                                                title="3D/AR Preview"
+                                            >
+                                                <Eye className="h-5 w-5"/>
+                                            </button>
+                                        )}
                                         <button onClick={() => onDeleteItem(item.id)} className="text-rose-500 hover:text-rose-700 p-2 rounded-full hover:bg-rose-100 transition" title="Delete Item">
                                             <TrashIcon className="h-5 w-5"/>
                                         </button>
