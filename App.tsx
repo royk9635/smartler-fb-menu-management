@@ -96,9 +96,12 @@ const App: React.FC = () => {
     const fetchMenuItems = useCallback(async () => {
         if (!selectedCategory) return;
         try {
+            console.log('Fetching menu items for category:', selectedCategory.id);
             const items = await api.getMenuItems('tenant-123', selectedCategory.id);
+            console.log('Fetched menu items:', items);
             setMenuItems(items);
         } catch (error) {
+            console.error('Error fetching menu items:', error);
             showToast('Failed to fetch menu items.', 'error');
         }
     }, [selectedCategory]);
@@ -109,17 +112,22 @@ const App: React.FC = () => {
 
     useEffect(() => {
         if (selectedCategory) {
+            console.log('Selected category changed, fetching menu items...');
             fetchMenuItems();
         }
-    }, [fetchMenuItems]);
+    }, [selectedCategory]);
 
     const handleSelectCategory = async (category: MenuCategory) => {
+        console.log('Selecting category:', category);
         setSelectedCategory(category);
         setLoading(true);
         try {
+            console.log('Fetching menu items for category:', category.id);
             const items = await api.getMenuItems('tenant-123', category.id);
+            console.log('Fetched items:', items);
             setMenuItems(items);
         } catch (error) {
+            console.error('Error fetching menu items:', error);
             showToast(`Failed to fetch menu items for ${category.name}.`, 'error');
         } finally {
             setLoading(false);
