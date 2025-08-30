@@ -269,10 +269,10 @@ const BulkOperationsModal: React.FC<BulkOperationsModalProps> = ({
                         <div className="mb-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Update Values</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {Array.from(selectedFields).map(field => (
+                                {Array.from(selectedFields).map((field: keyof BulkEditData) => (
                                     <div key={field}>
                                         <label className="block text-sm font-medium text-gray-700 mb-2 capitalize">
-                                            {field.replace(/([A-Z])/g, ' $1').trim()}
+                                            {field.toString().replace(/([A-Z])/g, ' $1').trim()}
                                         </label>
                                         {renderFieldInput(field)}
                                     </div>
@@ -299,10 +299,10 @@ const BulkOperationsModal: React.FC<BulkOperationsModalProps> = ({
                         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview Changes</h3>
                             <div className="space-y-2">
-                                {Array.from(selectedFields).map(field => (
+                                {Array.from(selectedFields).map((field: keyof BulkEditData) => (
                                     <div key={field} className="flex items-center gap-2 text-sm">
                                         <span className="font-medium text-gray-700 capitalize">
-                                            {field.replace(/([A-Z])/g, ' $1').trim()}:
+                                            {field.toString().replace(/([A-Z])/g, ' $1').trim()}:
                                         </span>
                                         <span className="text-gray-600">
                                             {getFieldValue(field)?.toString() || 'Not set'}
