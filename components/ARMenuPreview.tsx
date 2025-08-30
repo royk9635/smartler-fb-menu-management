@@ -150,8 +150,8 @@ const ARMenuPreview: React.FC<ARMenuPreviewProps> = ({ menuItem, onClose }) => {
 
     if (isLoading) {
         return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-8 text-center">
+            <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]">
+                <div className="bg-white rounded-lg p-8 text-center shadow-2xl">
                     <RefreshCw className="w-12 h-12 mx-auto animate-spin text-blue-600 mb-4" />
                     <div className="text-lg font-semibold text-gray-900 mb-2">Loading 3D Preview</div>
                     <div className="text-gray-600">Preparing {menuItem.name} for AR/3D viewing...</div>
@@ -161,7 +161,7 @@ const ARMenuPreview: React.FC<ARMenuPreviewProps> = ({ menuItem, onClose }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[9999]">
             <div className="bg-white rounded-lg shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -295,6 +295,22 @@ const ARMenuPreview: React.FC<ARMenuPreviewProps> = ({ menuItem, onClose }) => {
                                                 <div className="font-semibold text-green-900">{menuItem.calories || 'N/A'}</div>
                                                 <div className="text-green-700">Calories</div>
                                             </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {/* Fallback content for 3D view if container is empty */}
+                            {currentView === '3d' && containerRef.current && containerRef.current.children.length === 0 && (
+                                <div className="flex items-center justify-center h-full">
+                                    <div className="text-center p-8">
+                                        <div className="w-32 h-32 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full mx-auto mb-6 flex items-center justify-center">
+                                            <span className="text-4xl">🍽️</span>
+                                        </div>
+                                        <h3 className="text-2xl font-bold text-gray-900 mb-4">3D Preview: {menuItem.name}</h3>
+                                        <p className="text-gray-600 mb-6 max-w-md">3D rendering is being prepared...</p>
+                                        <div className="text-sm text-gray-500">
+                                            <p>If 3D preview doesn't load, try switching to Info view</p>
                                         </div>
                                     </div>
                                 </div>
